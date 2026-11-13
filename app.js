@@ -590,4 +590,17 @@
       el("loading").hidden = true;
       el("load-error").hidden = false;
     });
+
+  window.ValuationApp = {
+    applyFields: function (opts) {
+      opts = opts || {};
+      if (opts.address) el("addr").value = opts.address;
+      if (opts.ping != null && opts.ping !== "") el("ping").value = String(opts.ping);
+      if (opts.floor != null && opts.floor !== "") el("floor").value = String(opts.floor);
+      if (opts.age != null && opts.age !== "") el("age").value = String(opts.age);
+      if (opts.typ) el("typ").value = opts.typ;
+      if (data) render();
+    },
+  };
+
 })();

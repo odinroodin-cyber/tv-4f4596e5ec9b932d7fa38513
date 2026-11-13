@@ -113,6 +113,65 @@
     svg .grid { stroke: #efe8dc; stroke-width: 1; }
     svg .axis { fill: #6b655b; font-size: 11px; font-family: inherit; }
     ul { margin: 8px 0 0; padding-left: 1.2rem; }
+
+    .file-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+    .file-btn {
+      display: inline-block;
+      background: var(--green);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      text-align: center;
+      flex: 1 1 160px;
+      border: 0;
+    }
+    .file-btn.secondary { background: #2c4a40; }
+    .sr-file {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+    .progress {
+      margin: 10px 0;
+      color: var(--info);
+      background: var(--info-bg);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .progress .bar {
+      height: 6px;
+      background: #cfe3da;
+      border-radius: 99px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress .bar > span {
+      display: block;
+      height: 100%;
+      background: var(--green);
+      width: 0;
+    }
+    .tr-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 640px) { .tr-grid { grid-template-columns: 1fr; } }
+    .tr-grid .span { grid-column: 1 / -1; }
+    textarea#tr-raw {
+      width: 100%;
+      min-height: 8rem;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+    #tr-warnings { margin: 8px 0; }
     #load-error { color: var(--danger); }
     footer { padding: 8px 20px 40px; font-size: 0.85rem; }
   </style>
@@ -126,6 +185,116 @@
     <p id="loading">正在載入成交資料…</p>
     <p id="load-error" hidden>無法載入 data/taipei_sales.json。請用網頁伺服器開啟本站（不要直接用檔案路徑開啟），或確認資料檔與 index.html 在同一套靜態網站中。</p>
     <div id="app" hidden>
+      <section class="card" id="transcript-card">
+        <h2>拍照讀謄本</h2>
+        <p class="callout info">辨識與解析都在你的手機或電腦瀏覽器內完成。謄本照片、PDF 與辨識出的文字<strong>不會上傳到任何伺服器</strong>，也不會寫入此裝置的 localStorage。離開頁面或按「清除謄本資料」後即丟棄。首次使用會從免費 CDN 下載辨識程式與中文語系（下載的是程式，不是你的謄本）。</p>
+        <p>請拍攝建物或土地登記謄本，或從相簿／檔案選擇圖片、PDF。辨識後請先核對欄位，再採用試算結果。權狀總坪＝主建物＋附屬建物＋共有部分×持分，平方公尺以 ×0.3025 換算為坪；疑似車位面積會另外標出、不計入預設總坪。</p>
+        <div class="file-row">
+          <label class="file-btn" for="transcript-camera">拍照讀謄本</label>
+          <input id="transcript-camera" class="sr-file" type="file" accept="image/*,application/pdf" capture="environment">
+          <label class="file-btn secondary" for="transcript-file">選擇圖片或 PDF</label>
+          <input id="transcript-file" class="sr-file" type="file" accept="image/*,application/pdf">
+        </div>
+        <div id="ocr-progress" class="progress" hidden>
+          <div id="ocr-progress-text">準備中…</div>
+          <div class="bar"><span id="ocr-progress-bar"></span></div>
+        </div>
+        <div id="transcript-result" hidden>
+          <p id="tr-warnings"></p>
+          <div class="tr-grid">
+            <div class="span">
+              <label for="tr-address">建物門牌</label>
+              <input id="tr-address" type="text">
+            </div>
+            <div>
+              <label for="tr-use">主要用途</label>
+              <input id="tr-use" type="text">
+            </div>
+            <div>
+              <label for="tr-material">主要建材</label>
+              <input id="tr-material" type="text">
+            </div>
+            <div>
+              <label for="tr-stories">層數（全棟）</label>
+              <input id="tr-stories" type="text">
+            </div>
+            <div>
+              <label for="tr-floor">層次／樓層</label>
+              <input id="tr-floor" type="text" inputmode="numeric">
+            </div>
+            <div>
+              <label for="tr-date">建築完成日期</label>
+              <input id="tr-date" type="text">
+            </div>
+            <div>
+              <label for="tr-age">推算屋齡（年）</label>
+              <input id="tr-age" type="text" inputmode="numeric">
+            </div>
+            <div>
+              <label for="tr-type">建議建物類型</label>
+              <input id="tr-type" type="text">
+            </div>
+            <div>
+              <label for="tr-main-m2">主建物（平方公尺）</label>
+              <input id="tr-main-m2" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-main-ping">主建物（坪）</label>
+              <input id="tr-main-ping" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-att-m2">附屬建物（平方公尺）</label>
+              <input id="tr-att-m2" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-att-ping">附屬建物（坪）</label>
+              <input id="tr-att-ping" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-common-m2">共有部分（平方公尺）</label>
+              <input id="tr-common-m2" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-common-share">共有部分權利範圍（持分）</label>
+              <input id="tr-common-share" type="text" placeholder="例如 100000分之25000">
+            </div>
+            <div>
+              <label for="tr-common-ping">共有持分後（坪）</label>
+              <input id="tr-common-ping" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-total-ping">權狀總坪（不含車位，將填入試算）</label>
+              <input id="tr-total-ping" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-parking-m2">疑似車位（平方公尺，不計入總坪）</label>
+              <input id="tr-parking-m2" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-land-m2">土地面積（平方公尺）</label>
+              <input id="tr-land-m2" type="text" inputmode="decimal">
+            </div>
+            <div>
+              <label for="tr-land-share">土地權利範圍（持分）</label>
+              <input id="tr-land-share" type="text">
+            </div>
+            <div>
+              <label for="tr-land-ping">土地持分後（坪）</label>
+              <input id="tr-land-ping" type="text" inputmode="decimal">
+            </div>
+            <div class="span">
+              <label for="tr-raw">辨識文字（可修正後重新解析；離開頁面即丟棄，不另存）</label>
+              <textarea id="tr-raw" spellcheck="false"></textarea>
+            </div>
+          </div>
+          <div class="row-actions">
+            <button id="tr-apply" type="button">套用並試算</button>
+            <button id="tr-reparse" type="button">依修正文字重新解析</button>
+            <button id="tr-clear" type="button">清除謄本資料</button>
+          </div>
+        </div>
+      </section>
+
       <section class="card">
         <h2>查詢條件</h2>
         <div class="grid">
@@ -204,12 +373,16 @@
           <li>特殊交易預設排除，可自行勾選納入。</li>
           <li>同路段案例不足時會放寬到同路其他段或同行政區近似物件，區間會變寬，不宜當作精確估價。</li>
           <li>好時價、永慶、信義、樂居等房仲行情沒有即時串接；若要針對單一標的比對，需另行查詢公開頁面。</li>
+          <li>拍照讀謄本的辨識與解析只在瀏覽器內進行，謄本圖檔與文字不會上傳；光學辨識可能漏字或誤讀，面積與持分務必人工核對。</li>
           <li>本工具免費、純前端、不上傳你輸入的地址；結果僅供參考，不能取代鑑價或買賣決策。</li>
         </ul>
       </section>
     </div>
   </main>
-  <footer>資料來自政府開放資料，試算在瀏覽器內完成。頁面最後對應資料批次涵蓋至 2026 年 10 月左右的週報。</footer>
+  <footer>資料來自政府開放資料，試算與謄本辨識都在瀏覽器內完成，不會上傳謄本。頁面最後對應資料批次涵蓋至 2026 年 10 月左右的週報。</footer>
+  <script src="transcript.js"></script>
+  <script src="ocr.js"></script>
   <script src="app.js"></script>
+  <script src="transcript-ui.js"></script>
 </body>
 </html>
