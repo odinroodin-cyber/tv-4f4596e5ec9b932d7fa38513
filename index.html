@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>台北市簡易估價原型</title>
+  <meta name="description" content="以內政部與臺北市地政局公開實價登錄，依自行輸入的門牌試算臺北市房地單價與總價區間。資料不完整，僅供參考。">
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --card: #fffdf8;
+      --ink: #1c1a16;
+      --muted: #5b564c;
+      --line: #e4ddd2;
+      --green: #0f6e56;
+      --green-soft: #e6f4ef;
+      --warn: #8a4b12;
+      --warn-bg: #fff3e3;
+      --danger: #8a1f1f;
+      --danger-bg: #fdecec;
+      --info: #1c4b73;
+      --info-bg: #eaf3fb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.55 "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(1200px 500px at 10% -10%, #e9f5f0 0%, var(--bg) 55%);
+    }
+    header, main, footer { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    header { padding-top: 36px; padding-bottom: 8px; }
+    h1 { font-size: 1.7rem; margin: 0 0 8px; letter-spacing: 0.02em; }
+    .lead, .muted, footer { color: var(--muted); }
+    .lead { margin: 0 0 16px; max-width: 46rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin: 16px 0;
+      box-shadow: 0 1px 0 rgba(28, 26, 22, 0.03);
+    }
+    h2 { font-size: 1.15rem; margin: 0 0 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 0.7fr 0.7fr 0.9fr;
+      gap: 12px;
+    }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .grid .span { grid-column: 1 / -1; }
+    }
+    label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; }
+    input, select, button {
+      font: inherit;
+      width: 100%;
+      border: 1px solid #d8d0c4;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    input:focus, select:focus { outline: 2px solid #8cc9b8; border-color: var(--green); }
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+    .check input { width: auto; }
+    button {
+      width: auto;
+      background: var(--green);
+      color: #fff;
+      border: 0;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.05); }
+    .parse {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    @media (max-width: 700px) { .parse { grid-template-columns: 1fr 1fr; } }
+    .chip { background: #f3eee6; border-radius: 10px; padding: 10px 12px; }
+    .chip .k { font-size: 0.75rem; color: var(--muted); }
+    .chip .v { font-weight: 600; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 800px) { .metrics { grid-template-columns: 1fr 1fr; } }
+    .metric { background: var(--green-soft); border-radius: 12px; padding: 12px 14px; }
+    .metric.warn { background: var(--warn-bg); }
+    .metric .k { font-size: 0.78rem; color: var(--muted); }
+    .metric .v { font-size: 1.2rem; font-weight: 700; margin: 4px 0; }
+    .metric .d { font-size: 0.8rem; color: var(--muted); }
+    .callout { border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+    .callout.warn { background: var(--warn-bg); color: var(--warn); }
+    .callout.danger { background: var(--danger-bg); color: var(--danger); }
+    .callout.info { background: var(--info-bg); color: var(--info); }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+    th { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    svg { width: 100%; height: auto; display: block; }
+    svg .grid { stroke: #efe8dc; stroke-width: 1; }
+    svg .axis { fill: #6b655b; font-size: 11px; font-family: inherit; }
+    ul { margin: 8px 0 0; padding-left: 1.2rem; }
+    #load-error { color: var(--danger); }
+    footer { padding: 8px 20px 40px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>台北市簡易估價原型</h1>
+    <p class="lead">依你輸入的門牌，從本批已嵌入的官方實價登錄中尋找同路段、相近號的房地買賣，再推估單價與總價區間。這不是鑑價，樣本偏少時只供參考，不會填造數字。</p>
+  </header>
+  <main>
+    <p id="loading">正在載入成交資料…</p>
+    <p id="load-error" hidden>無法載入 data/taipei_sales.json。請用網頁伺服器開啟本站（不要直接用檔案路徑開啟），或確認資料檔與 index.html 在同一套靜態網站中。</p>
+    <div id="app" hidden>
+      <section class="card">
+        <h2>查詢條件</h2>
+        <div class="grid">
+          <div class="span">
+            <label for="addr">門牌地址</label>
+            <input id="addr" type="text" autocomplete="street-address" placeholder="例如：台北市內湖區民權東路六段173號9樓">
+          </div>
+          <div>
+            <label for="ping">建物坪數（不含車位）</label>
+            <input id="ping" type="text" inputmode="decimal">
+          </div>
+          <div>
+            <label for="floor">樓層</label>
+            <input id="floor" type="text" inputmode="numeric">
+          </div>
+          <div>
+            <label for="age">屋齡（年，選填）</label>
+            <input id="age" type="text" inputmode="numeric">
+          </div>
+          <div>
+            <label for="typ">建物類型</label>
+            <select id="typ">
+              <option>不限</option>
+              <option>住宅大樓</option>
+              <option>華廈</option>
+              <option>公寓</option>
+              <option>透天厝</option>
+            </select>
+          </div>
+        </div>
+        <div class="row-actions">
+          <label class="check"><input id="special" type="checkbox"> 納入特殊交易（親友、急售等備註）</label>
+          <button id="reset" type="button">還原範例地址</button>
+        </div>
+        <div class="parse" aria-label="解析結果">
+          <div class="chip"><div class="k">行政區</div><div class="v" id="parse-dist">—</div></div>
+          <div class="chip"><div class="k">路／段</div><div class="v" id="parse-road">—</div></div>
+          <div class="chip"><div class="k">巷弄門牌</div><div class="v" id="parse-no">—</div></div>
+          <div class="chip"><div class="k">解析樓層</div><div class="v" id="parse-floor">—</div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>試算結果</h2>
+        <div id="metrics"></div>
+        <div id="notes"></div>
+      </section>
+
+      <section class="card">
+        <h2>比較成交</h2>
+        <div id="comps"></div>
+      </section>
+
+      <section class="card">
+        <h2>比較案例單價走勢</h2>
+        <div id="trend-box"></div>
+      </section>
+
+      <section class="card">
+        <h2>資料涵蓋範圍</h2>
+        <p>本站目前嵌入 <strong id="cov-n">—</strong> 筆臺北市房地／建物買賣（已排除純土地與無法計算單價者），涵蓋 12 個行政區、<span id="cov-roads">—</span> 個路段鍵。交易年月約 <span id="cov-years"></span></p>
+        <p>各區筆數：<span id="cov-dists"></span></p>
+        <p>來源：</p>
+        <ul>
+          <li>內政部本期買賣批次（政府資料開放平臺 quality.data.gov.tw 轉檔，nid=25119，快取品質檢測時間約 2026-06；交易日多為民國 115 年 1–5 月）。</li>
+          <li>臺北市地政局實價週報（data.taipei，更新 2026-11-11；買賣案件以民國 115 年 6–10 月為主，另含少數較早案件）。</li>
+        </ul>
+        <p>兩來源鍵值沒有重疊。內政部 plvr.land.moi.gov.tw 近 2–3 年季節性完整 zip 本次無法下載（連線逾時或品質檢測尚未快取），因此本批不是完整的兩三年歷史，2019–2025 年樣本明顯偏少，2026 年佔大多數。</p>
+      </section>
+
+      <section class="card">
+        <h2>使用限制</h2>
+        <ul>
+          <li>實價登錄門牌常被遮罩成號段，比較只能做到路段與相近號範圍，無法保證同一棟。</li>
+          <li>單價盡量扣除車位總價與車位面積；若備註無法拆淨，會在表中標「車位未拆淨」。</li>
+          <li>特殊交易預設排除，可自行勾選納入。</li>
+          <li>同路段案例不足時會放寬到同路其他段或同行政區近似物件，區間會變寬，不宜當作精確估價。</li>
+          <li>好時價、永慶、信義、樂居等房仲行情沒有即時串接；若要針對單一標的比對，需另行查詢公開頁面。</li>
+          <li>本工具免費、純前端、不上傳你輸入的地址；結果僅供參考，不能取代鑑價或買賣決策。</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+  <footer>資料來自政府開放資料，試算在瀏覽器內完成。頁面最後對應資料批次涵蓋至 2026 年 10 月左右的週報。</footer>
+  <script src="app.js"></script>
+</body>
+</html>
